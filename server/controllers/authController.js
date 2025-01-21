@@ -1,7 +1,7 @@
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import userModel from '../models/userModel.js';
-
+import transporter from '../config/nodemailer.js'
 export const register = async (req, res) => {
     const{name,email,password}=req.body;
     if(!name||!email||!password){
@@ -23,6 +23,14 @@ export const register = async (req, res) => {
         secure:process.env.NODE_ENV==='production',
         sameSite:process.env.NODE_ENV==='production'?'none':'strict',
         maxAge: 7*24*60*60*1000});
+        const mailOptions={
+            from: process.env.SENDER_EMAIL,
+            to: email,
+            subject:'Welcome to Oline Marketing ',
+            text:`Welcome to Online Marketing website. Your account has been created with an email id : ${email}`
+        }
+        await transporter.sendMail(mailOptions)
+        return res.json({success:true});
     }
     catch(error){
         res.json({success:false,message:error.message})
@@ -63,6 +71,56 @@ export const logout = async (req, res)=>{
             sameSite:process.env.NODE_ENV==='production'?'none':'strict'});
         return res.json({success:true,message:'Logged out'});
 
+    }
+    catch(error){
+        return res.json({success:false,message:error.message});
+    }
+}
+export const sendVerifyOtp =async(req,res)=>{
+    try{
+        const{userId}= req.body;
+        const user = await userModel.findById(userId);
+        if(user.isAccountVerified){
+            return res.json({success:false,message: error.message});
+        }
+      const otp= String(Math.floor(100000 +  Math.random()*900000));
+      user.verifyOtp=otp;
+      verifyOtpExpireAt=Date.now()+24*60*60*1000
+      await user.save();
+      const mailOption={
+        from: process.env.SENDER_EMAIL,
+            to: user.email,
+            subject:'Account verification OTP ',
+            text:`Your OTP is ${otp}. Verify your account using the given Otp`
+      }
+      await transporter.sendMail(mailOption);
+      res.json({success:true,message:"Verification OTP is send to your email id "});
+    }
+    catch(error){
+        res.json({success: false, message:error.message});
+    }
+}
+export const verifyEmail = async(req,res)=>{
+    const{userId,otp}= req.body;
+    if (!userId || !otp){
+        return res.json({success:false,message:'missing Deatils'});
+    }
+    try{
+        const user=await userModel.findById(userId);
+        if(!user){
+            return res.json({success:false,message:'User not found'});
+        }
+        if(user.verifyOtp===''|| user.verifyOtp !==otp){
+            return res.json({success:false,message:'invaild OTP'});
+        }
+        if(user.verifyOtpExpireAt<Date.now()){
+            return res.json({successs:false,message:'OTP expired'});
+        }
+        user.isAccountVerified=true;
+        user.verifyOtp='';
+        user.verifyOtpExpireAt=0;
+        await user.save();
+        return res.json({success:true,message:"Email is Verified"});
     }
     catch(error){
         return res.json({success:false,message:error.message});
