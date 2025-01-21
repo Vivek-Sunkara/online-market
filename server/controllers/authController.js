@@ -81,18 +81,18 @@ export const sendVerifyOtp =async(req,res)=>{
         const{userId}= req.body;
         const user = await userModel.findById(userId);
         if(user.isAccountVerified){
-            return res.json({success:false,message: error.message});
+            return res.json({success:false,message: 'Account is already verified'});
         }
       const otp= String(Math.floor(100000 +  Math.random()*900000));
       user.verifyOtp=otp;
-      verifyOtpExpireAt=Date.now()+24*60*60*1000
+      user.verifyOtpExpireAt=Date.now()+24*60*60*1000
       await user.save();
       const mailOption={
         from: process.env.SENDER_EMAIL,
-            to: user.email,
-            subject:'Account verification OTP ',
-            text:`Your OTP is ${otp}. Verify your account using the given Otp`
-      }
+        to: user.email,
+        subject:'Account verification OTP ',
+        text:`Your OTP is ${otp}. Verify your account using the given Otp`
+      };
       await transporter.sendMail(mailOption);
       res.json({success:true,message:"Verification OTP is send to your email id "});
     }
@@ -124,5 +124,67 @@ export const verifyEmail = async(req,res)=>{
     }
     catch(error){
         return res.json({success:false,message:error.message});
+    }
+}
+export const isAuthenticated = async(req,res)=>{
+    try{
+        return res.json({success:true});
+    }
+    catch{
+        res.json({success:false,message:error.message});
+    }
+}
+export const sendRestOtp = async(req,res)=>{
+    const {email}=req.body;
+    if(!email){
+        return res.json({success:false,message:'Email is required'});
+    }
+    try {
+        const user = await userModel.findOne({email});
+        if(!user){
+            return res.json({success:false,message:'User not found'});
+        }
+        const otp = String(Math.floor(100000 + Math.random()*900000));
+        user.resetOtp=otp;
+        user.resetOtpExpireAt=Date.now()+15*60*1000;
+        await user.save();
+        const mailOption={
+            from: process.env.SENDER_EMAIL,
+            to: user.email,
+            subject:'Reset Password OTP',
+            text:`Your OTP is ${otp}. Reset your password using the given OTP`
+        };
+        await transporter.sendMail(mailOption);
+        return res.json({success:true,message:'Reset OTP is send to your email id'});
+    }
+    catch(error){
+        res.json({success:false,message:error.message});
+    }
+}
+export const resetPassword = async(req,res)=>{
+    const {email,otp, newPassword} = req.body;
+    if(!email||!otp||!newPassword){
+        return res.json({success:false,message:'Missing Details'});
+    }
+    try{
+        const user = await userModel.findOne({email});
+        if(!user){
+            return res.json({success:false,message:'User not found'});
+        }
+        if(user.resetOtp===''||user.resetOtp !==otp){
+            return res.json({success:false,message:'Invalid OTP'});
+        }
+        if(user.resetOtpExpireAt<Date.now()){
+            return res.json({success:false,message:'OTP expired'});
+        }
+        const hashedPassword = await bcrypt.hash(newPassword,10);
+        user.password=hashedPassword;
+        user.resetOtp='';
+        user.resetOtpExpireAt=0;
+        await user.save();
+        return res.json({success:true,message:'Password reset successful'});
+    }
+    catch(error){
+        res.json({success:false,message:error.message});
     }
 }
