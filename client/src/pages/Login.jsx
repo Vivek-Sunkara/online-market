@@ -1,17 +1,17 @@
-import React, { useState, useContext } from 'react'
+import React, { useContext, useState } from 'react'
 import { assets } from '../assets/assets'
 import { useNavigate } from 'react-router-dom'
-import { AppContent } from '../context/AppContext'
 import axios from 'axios'
 import { toast } from 'react-toastify'
+import { AppContent } from '../context/AppContext'
 
 const Login = () => {
-  const navigate = useNavigate()
-  const { backendUrl, setIsLoggedin } = useContext(AppContent)
-  const [state, setState] = useState('Sign Up')
   const [name, setName] = useState('')
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
+  const navigate = useNavigate()
+  const { backendUrl, setIsLoggedin, getUserData } = useContext(AppContent)
+  const [state, setState] = useState('Sign Up')
 
   const onSubmitHandler = async (e) => {
     try {
@@ -21,6 +21,7 @@ const Login = () => {
         const { data } = await axios.post(`${backendUrl}/api/auth/register`, { name, email, password })
         if (data.success) {
           setIsLoggedin(true)
+          await getUserData()
           navigate('/')
         } else {
           toast.error(data.message)
@@ -29,13 +30,20 @@ const Login = () => {
         const { data } = await axios.post(`${backendUrl}/api/auth/login`, { email, password })
         if (data.success) {
           setIsLoggedin(true)
+          await getUserData()
           navigate('/')
         } else {
           toast.error(data.message)
         }
       }
     } catch (error) {
-      toast.error(error.message)
+      if (error.response) {
+        toast.error(`Error: ${error.response.data.message}`)
+      } else if (error.request) {
+        toast.error('Network error: No response received from the server')
+      } else {
+        toast.error(`Error: ${error.message}`)
+      }
     }
   }
 
