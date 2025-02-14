@@ -5,7 +5,7 @@ import { toast } from 'react-toastify';
 
 const ProductCard = ({ product }) => {
   const [isExpanded, setIsExpanded] = useState(false);
-  const { userData } = useContext(AppContent);
+  const { userData, backendUrl } = useContext(AppContent);
 
   const handleCardClick = () => {
     setIsExpanded(!isExpanded);
@@ -13,7 +13,7 @@ const ProductCard = ({ product }) => {
 
   const handleBuy = async () => {
     try {
-      const { data } = await axios.post(`http://localhost:4000/api/products/buy/${product._id}`, {
+      const { data } = await axios.post(`${backendUrl}/api/products/buy/${product._id}`, {
         buyerId: userData._id,
       });
       if (data.success) {

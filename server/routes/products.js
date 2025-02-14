@@ -1,11 +1,23 @@
 import express from 'express';
-import Product from '../models/Product.js';  // Corrected import
+import multer from 'multer';
+import Product from '../models/Product.js'; // Ensure you have a Product model
 import nodemailer from 'nodemailer';
 
 const router = express.Router();
 
+// Set up multer for file uploads
+const storage = multer.diskStorage({
+  destination: (req, file, cb) => {
+    cb(null, 'uploads/');
+  },
+  filename: (req, file, cb) => {
+    cb(null, `${Date.now()}-${file.originalname}`);
+  },
+});
+const upload = multer({ storage });
+
 // Endpoint to fetch products
-router.get('/api/products', async (req, res) => {
+router.get('/', async (req, res) => {
   try {
     const products = await Product.find();
     res.json({ products });
@@ -15,9 +27,9 @@ router.get('/api/products', async (req, res) => {
 });
 
 // Endpoint to fetch products by user
-router.get('/api/products/user/:userId', async (req, res) => {
+router.get('/user/:userId', async (req, res) => {
   try {
-    const products = await Product.find({ username: req.params.userId });
+    const products = await Product.find({ userId: req.params.userId });
     res.json({ products });
   } catch (error) {
     res.status(500).json({ message: 'Error fetching products' });
@@ -25,10 +37,16 @@ router.get('/api/products/user/:userId', async (req, res) => {
 });
 
 // Endpoint to add a product
-router.post('/api/products', async (req, res) => {
+router.post('/', upload.single('image'), async (req, res) => {
   try {
-    const { name, price, description, image, username } = req.body;
-    const product = new Product({ name, price, description, image, username });
+    const { name, price, description, userId } = req.body;
+    const image = req.file ? req.file.path : null;
+
+    if (!name || !description || !price || !image || !userId) {
+      return res.status(400).json({ success: false, message: 'All fields are required' });
+    }
+
+    const product = new Product({ name, price, description, image, userId });
     await product.save();
     res.json({ success: true, product });
   } catch (error) {
@@ -37,7 +55,7 @@ router.post('/api/products', async (req, res) => {
 });
 
 // Endpoint to buy a product
-router.post('/api/products/buy/:productId', async (req, res) => {
+router.post('/buy/:productId', async (req, res) => {
   try {
     const product = await Product.findById(req.params.productId);
     if (!product) {
@@ -58,7 +76,7 @@ router.post('/api/products/buy/:productId', async (req, res) => {
 
     const mailOptions = {
       from: 'your-email@gmail.com',
-      to: product.username,
+      to: product.userId,
       subject: 'Your product has been bought',
       text: `Your product "${product.name}" has been bought by ${req.body.buyerId}.`,
     };
@@ -74,4 +92,4 @@ router.post('/api/products/buy/:productId', async (req, res) => {
   }
 });
 
-export { router as productsRoute };
+export default router;

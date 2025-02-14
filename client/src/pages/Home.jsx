@@ -8,21 +8,22 @@ import { AppContent } from '../context/AppContext'; // Correct import
 
 const Home = () => {
   const [products, setProducts] = useState([]);
-  const { userData } = useContext(AppContent);
-  const backendUrl = import.meta.env.VITE_BACKEND_URL;
+  const { userData, backendUrl } = useContext(AppContent);
 
   useEffect(() => {
     const fetchProducts = async () => {
-      try {
-        const { data } = await axios.get(`${backendUrl}/api/products`);
-        setProducts(data.products);
-      } catch (error) {
-        console.error('Error fetching products:', error);
+      if (userData) { // Fetch products only if user is logged in
+        try {
+          const { data } = await axios.get(`${backendUrl}/api/products`);
+          setProducts(data.products);
+        } catch (error) {
+          console.error('Error fetching products:', error);
+        }
       }
     };
 
     fetchProducts();
-  }, [backendUrl]);
+  }, [backendUrl, userData]);
 
   const handleProductAdded = (newProduct) => {
     setProducts([...products, newProduct]);
@@ -33,12 +34,15 @@ const Home = () => {
       <Navbar />
       <Header />
       {userData && <AddProductForm onProductAdded={handleProductAdded} />}
-      <div className='grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 p-4'>
-        {products.map(product => (
-          <ProductCard key={product._id} product={product} />
-        ))}
-      </div>
-      <p className='text-gray-700 mt-4'>home</p>
+      {userData ? (
+        <div className='grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 p-4'>
+          {products.map(product => (
+            <ProductCard key={product._id} product={product} />
+          ))}
+        </div>
+      ) : (
+        <p className='text-gray-700 mt-4'>Please log in to view products.</p>
+      )}
     </div>
   );
 };

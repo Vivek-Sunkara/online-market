@@ -19,10 +19,15 @@ const productSchema = new mongoose.Schema({
   },
   userId: {
     type: mongoose.Schema.Types.ObjectId,
-    ref: 'User',  // Ensure 'User' is correctly referenced in your schema for relational data
+    ref: 'User',
     required: true,
   },
-}, { timestamps: true });  // Added timestamps to track createdAt and updatedAt
+  status: {
+    type: String,
+    default: 'Available',
+  },
+});
 
-// Export the model
-export default mongoose.model('Product', productSchema);
+const Product = mongoose.model('Product', productSchema);
+
+export default Product;
