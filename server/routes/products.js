@@ -14,15 +14,17 @@ const storage = multer.diskStorage({
     cb(null, `${Date.now()}-${file.originalname}`);
   },
 });
+
 const upload = multer({ storage });
 
-// Endpoint to fetch products
+// Endpoint to fetch all products
 router.get('/', async (req, res) => {
   try {
     const products = await Product.find();
     res.json({ products });
   } catch (error) {
-    res.status(500).json({ message: 'Error fetching products' });
+    console.error('Error fetching products:', error);
+    res.status(500).json({ message: 'Error fetching products', error: error.message });
   }
 });
 
@@ -32,7 +34,8 @@ router.get('/user/:userId', async (req, res) => {
     const products = await Product.find({ userId: req.params.userId });
     res.json({ products });
   } catch (error) {
-    res.status(500).json({ message: 'Error fetching products' });
+    console.error('Error fetching products by user:', error);
+    res.status(500).json({ message: 'Error fetching products by user', error: error.message });
   }
 });
 
@@ -40,7 +43,7 @@ router.get('/user/:userId', async (req, res) => {
 router.post('/', upload.single('image'), async (req, res) => {
   try {
     const { name, price, description, userId } = req.body;
-    const image = req.file ? req.file.path : null;
+    const image = req.file ? `/uploads/${req.file.filename}` : null;
 
     if (!name || !description || !price || !image || !userId) {
       return res.status(400).json({ success: false, message: 'All fields are required' });
@@ -48,9 +51,11 @@ router.post('/', upload.single('image'), async (req, res) => {
 
     const product = new Product({ name, price, description, image, userId });
     await product.save();
+
     res.json({ success: true, product });
   } catch (error) {
-    res.status(500).json({ message: 'Error adding product' });
+    console.error('Error adding product:', error);
+    res.status(500).json({ message: 'Error adding product', error: error.message });
   }
 });
 
@@ -69,26 +74,28 @@ router.post('/buy/:productId', async (req, res) => {
     const transporter = nodemailer.createTransport({
       service: 'gmail',
       auth: {
-        user: 'your-email@gmail.com',
-        pass: 'your-email-password',
+        user: process.env.EMAIL_USER, // Use environment variables
+        pass: process.env.EMAIL_PASS, // Use an App Password
       },
     });
 
     const mailOptions = {
-      from: 'your-email@gmail.com',
-      to: product.userId,
+      from: process.env.EMAIL_USER,
+      to: product.userId, // Ensure this is a valid email
       subject: 'Your product has been bought',
       text: `Your product "${product.name}" has been bought by ${req.body.buyerId}.`,
     };
 
     transporter.sendMail(mailOptions, (error, info) => {
       if (error) {
-        return res.status(500).json({ message: 'Error sending email' });
+        console.error('Error sending email:', error);
+        return res.status(500).json({ message: 'Error sending email', error: error.message });
       }
       res.json({ success: true, message: 'Product bought successfully' });
     });
   } catch (error) {
-    res.status(500).json({ message: 'Error buying product' });
+    console.error('Error buying product:', error);
+    res.status(500).json({ message: 'Error buying product', error: error.message });
   }
 });
 
